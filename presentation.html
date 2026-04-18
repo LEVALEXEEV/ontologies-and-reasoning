@@ -1,0 +1,485 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Использование онтологий для reasoning в LLM</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="presentation.css">
+</head>
+<body>
+  <main class="deck">
+    <section class="slide" id="slide-1">
+      <span class="section-label">Слайд 1 • Титул</span>
+      <h1 class="slide-title">Использование онтологий для reasoning в LLM</h1>
+      <p class="slide-subtitle">OntologyRAG: Better and Faster Biomedical Code Mapping with Retrieval-Augmented Generation Leveraging Ontology Knowledge Graphs and Large Language Models</p>
+      <div class="meta">
+        <span class="meta-chip">Длительность: 30–35 минут + 5 минут Q&A</span>
+        <span class="meta-chip">Формат: инженерный разбор статьи</span>
+      </div>
+      <p class="footer-title">Ключевой тезис</p>
+      <p>Интеграция графа знаний с LLM делает рассуждения модели проверяемыми, обновляемыми и полезными для экспертного процесса принятия решений.</p>
+    </section>
+
+    <section class="slide" id="slide-2">
+      <span class="section-label">Слайд 2 • Мотивация</span>
+      <h2>Где reasoning действительно необходим</h2>
+      <p>Задача code mapping требует не только поиска похожих строк, но и анализа смысловой эквивалентности между концептами из разных онтологий.</p>
+      <ul>
+        <li>Необходимо различать полный синоним и неполное совпадение.</li>
+        <li>Требуется учитывать признаки типа acute/chronic и unspecified.</li>
+        <li>Нужно отделять «лексическую близость» от «семантической эквивалентности».</li>
+      </ul>
+      <p>Если модель выдаёт только список кандидатов без структуры и обоснования, вся верификация переносится на эксперта.</p>
+    </section>
+
+    <section class="slide" id="slide-3">
+      <span class="section-label">Слайд 3 • Цель</span>
+      <h2>Что именно будет показано</h2>
+      <div class="goals-row">
+        <article class="goal-block">
+          <h3>1. Роль онтологий в reasoning</h3>
+          <p>Будет показано, какие механизмы структурированного знания усиливают качество и проверяемость рассуждений LLM.</p>
+        </article>
+        <article class="goal-block">
+          <h3>2. Архитектура OntologyRAG</h3>
+          <p>Будут разобраны этапы indexing, retrieval, reasoning и встроенные процедуры контроля корректности.</p>
+        </article>
+        <article class="goal-block">
+          <h3>3. Подтверждение результатами</h3>
+          <p>Будут интерпретированы ключевые таблицы и графики, демонстрирующие практический эффект подхода.</p>
+        </article>
+      </div>
+    </section>
+
+    <section class="slide" id="slide-4">
+      <span class="section-label">Слайд 4 • Ликбез</span>
+      <h2>Онтология как структурированное знание</h2>
+      <p>Онтология в вычислительном контексте представляет формальную систему концептов и отношений, а не просто словарь терминов.</p>
+      <div class="cols-2">
+        <div class="card">
+          <h3>Что даёт структура</h3>
+          <ul>
+            <li>Иерархии «род–вид».</li>
+            <li>Явные семантические связи.</li>
+            <li>Формальные ограничения и совместимость понятий.</li>
+          </ul>
+        </div>
+        <div class="card">
+          <h3>Почему это важно</h3>
+          <ul>
+            <li>Снижает ошибки по «похожести слов».</li>
+            <li>Делает выводы интерпретируемыми.</li>
+            <li>Позволяет обновлять знания без retrain модели.</li>
+          </ul>
+        </div>
+      </div>
+    </section>
+
+    <section class="slide" id="slide-5">
+      <span class="section-label">Слайд 5 • Почему не LLM-only</span>
+      <h2>Ограничения прямого zero-shot mapping</h2>
+      <p>Абляция в статье показывает, что прямой маппинг кодов без внешнего контекста даёт крайне низкую точность даже у сильных моделей.</p>
+      <ul>
+        <li>Параметрическая память не покрывает закрытые и быстро обновляющиеся доменные знания.</li>
+        <li>Лексическая близость не эквивалентна semantic match.</li>
+        <li>Модель без evidence склонна к угадыванию и галлюцинациям.</li>
+      </ul>
+      <figure class="evidence">
+        <img src="assets/table%202.png" alt="Table 2: Accuracy from using different LLMs directly for code mapping">
+        <figcaption>Table 2. Zero-shot accuracy для прямого code mapping.</figcaption>
+      </figure>
+    </section>
+
+    <section class="slide" id="slide-6">
+      <span class="section-label">Слайд 6 • Интуиция</span>
+      <h2>Онтологии + RAG как основание для reasoning</h2>
+      <p>RAG переносит основание ответа из «памяти модели» в явно извлечённый контекст. В OntologyRAG источником контекста служит граф знаний.</p>
+      <div class="goals-row">
+        <article class="goal-block">
+          <h3>1. Структурированный контекст</h3>
+          <p>Источником контекста становятся семантические связи графа, а не только текстовые совпадения в документах.</p>
+        </article>
+        <article class="goal-block">
+          <h3>2. Обновляемость знаний</h3>
+          <p>Актуализация предметных знаний обеспечивается обновлением графа без повторного обучения языковой модели.</p>
+        </article>
+        <article class="goal-block">
+          <h3>3. Основание для reasoning</h3>
+          <p>Рассуждение и итоговые выводы формируются на базе фактов, извлечённых retrieval-этапом.</p>
+        </article>
+      </div>
+    </section>
+
+    <section class="slide" id="slide-7">
+      <span class="section-label">Слайд 7 • Архитектура</span>
+      <h2>OntologyRAG: общий workflow</h2>
+      <ol>
+        <li>Indexing: перевод онтологий и mapping-данных в RDF и загрузка в граф.</li>
+        <li>Retrieval: NL2SPARQL преобразует запрос пользователя в формальный запрос к графу.</li>
+        <li>Reasoning &amp; Summarization: оценка близости и формирование объяснения.</li>
+      </ol>
+      <p>Этап reasoning в пайплайне контролируем и основан на извлечённых данных, а не на свободной генерации.</p>
+      <figure class="evidence">
+        <img src="assets/figure%201.png" alt="Figure 1: OntologyRAG workflow for code mapping">
+        <figcaption>Fig. 1. Полный workflow OntologyRAG и формат output для эксперта.</figcaption>
+      </figure>
+    </section>
+
+    <section class="slide" id="slide-8">
+      <span class="section-label">Слайд 8 • Indexing</span>
+      <h2>Как исходные данные превращаются в граф</h2>
+      <p>Indexing реализован как ETL-процесс: Extract → Transform → Load.</p>
+      <div class="indexing-diagram" aria-label="Схема ETL процесса indexing">
+        <div class="diagram-lane">
+          <article class="diagram-node node-source">
+            <h3>Источник данных</h3>
+            <p>Таблицы, XML, mapping-файлы</p>
+          </article>
+          <span class="diagram-arrow" aria-hidden="true"></span>
+          <article class="diagram-node">
+            <h3>Extract</h3>
+            <p>Извлечение сущностей и кодов</p>
+          </article>
+          <span class="diagram-arrow" aria-hidden="true"></span>
+          <article class="diagram-node">
+            <h3>Transform</h3>
+            <p>Преобразование в RDF triples</p>
+          </article>
+          <span class="diagram-arrow" aria-hidden="true"></span>
+          <article class="diagram-node node-target">
+            <h3>Load</h3>
+            <p>Загрузка в графовую БД Oxigraph</p>
+          </article>
+        </div>
+        <p class="diagram-caption">Структурный результат этапа indexing: единый граф знаний, доступный для формальных запросов и последующего reasoning.</p>
+      </div>
+      <p>Практический эффект: изменение онтологии решается переиндексацией графа вместо повторного обучения LLM.</p>
+    </section>
+
+    <section class="slide" id="slide-9">
+      <span class="section-label">Слайд 9 • Retrieval</span>
+      <h2>NL2SPARQL: интерфейс между пользователем и графом</h2>
+      <p>LLM генерирует SPARQL по формальному промпту с правилами, списком графов и примерами NLQ→SPARQL.</p>
+      <ul>
+        <li>Формат ответа ограничен: вернуть только корректный запрос.</li>
+        <li>Используется self-validation loop для проверки синтаксиса и сущностей.</li>
+        <li>При ошибках выполняется перегенерация до валидного запроса.</li>
+      </ul>
+      <figure class="evidence">
+        <img src="assets/figure%202.png" alt="Figure 2: Prompts for NL2SPARQL query generation">
+        <figcaption>Fig. 2. Prompt для генерации SPARQL в модуле NL2SPARQL.</figcaption>
+      </figure>
+    </section>
+
+    <section class="slide" id="slide-10">
+      <span class="section-label">Слайд 10 • Reasoning</span>
+      <h2>Mapping proximity: рабочая шкала A/B/C</h2>
+      <div class="cols-2">
+        <div class="card">
+          <h3>Уровни</h3>
+          <ul>
+            <li>A: полное семантическое совпадение.</li>
+            <li>B: частичная связность, требуется уточнение.</li>
+            <li>C: семантический конфликт.</li>
+          </ul>
+        </div>
+        <div class="card">
+          <h3>Операционное значение</h3>
+          <ul>
+            <li>A: потенциальная автоматизация одобрения.</li>
+            <li>B: передача эксперту для анализа.</li>
+            <li>C: потенциальная автоматизация отклонения.</li>
+          </ul>
+        </div>
+      </div>
+      <figure class="evidence">
+        <img src="assets/table%201.png" alt="Table 1: Definition of mapping levels A B C for code pairs">
+        <figcaption>Table 1. Определения уровней A/B/C и иллюстративные примеры.</figcaption>
+      </figure>
+    </section>
+
+    <section class="slide" id="slide-11">
+      <span class="section-label">Слайд 11 • Декомпозиция</span>
+      <h2>Сначала класс, затем объяснение</h2>
+      <div class="slide-11-layout">
+        <div class="slide-11-text">
+          <ol>
+            <li>Первый вызов LLM: строгий вывод mapping level (A/B/C).</li>
+            <li>Второй вызов LLM: генерация reasoning на базе предсказанного уровня.</li>
+            <li>Третий шаг: итоговое summary для пользователя.</li>
+          </ol>
+          <p>Разделение «решения» и «объяснения» уменьшает нестабильность классификации и повышает воспроизводимость.</p>
+        </div>
+        <figure class="evidence slide-11-figure">
+          <img src="assets/figure%203.png" alt="Figure 3: Prompts for mapping level prediction and reasoning">
+          <figcaption>Fig. 3. Двухэтапная схема: mapping level prediction и reasoning.</figcaption>
+        </figure>
+      </div>
+    </section>
+
+    <section class="slide" id="slide-12">
+      <span class="section-label">Слайд 12 • Prompting</span>
+      <h2>Стратегии prompting: от zero-shot к CoT</h2>
+      <div class="strategies-row">
+        <article class="strategy-block">
+          <h3>Zero-shot</h3>
+          <p>Модель выполняет классификацию без демонстрационных примеров.</p>
+        </article>
+        <article class="strategy-block">
+          <h3>Few-shot</h3>
+          <p>В промпт добавляются эталонные пары и ожидаемые ответы.</p>
+        </article>
+        <article class="strategy-block">
+          <h3>Enhanced few-shot</h3>
+          <p>Усиливается представление сложных случаев уровня B.</p>
+        </article>
+        <article class="strategy-block">
+          <h3>CoT</h3>
+          <p>Поверх enhanced добавляется структурированная цепочка рассуждений.</p>
+        </article>
+      </div>
+      <p>Наиболее проблемная зона в задаче — уровень B, так как он описывает граничные случаи частичного совпадения.</p>
+    </section>
+
+    <section class="slide" id="slide-13">
+      <span class="section-label">Слайд 13 • Данные</span>
+      <h2>Оценочный дизайн экспериментов</h2>
+      <div class="compare-grid">
+        <article class="card compare-card">
+          <h3>Dataset 1</h3>
+          <p class="compare-meta">500 примеров</p>
+          <p>Прямой code mapping без дополнительного retrieval-контекста.</p>
+          <p>Назначение: зафиксировать ограничения подхода LLM-only и получить baseline.</p>
+        </article>
+        <article class="card compare-card">
+          <h3>Dataset 2</h3>
+          <p class="compare-meta">500 пар описаний</p>
+          <p>Пары заболеваний с экспертной разметкой уровней A/B/C.</p>
+          <p>Назначение: измерить точность классификации уровня сопоставления.</p>
+        </article>
+      </div>
+      <p>Ключевой показатель для второй задачи: точность предсказания класса A/B/C, независимо от качества текста объяснения.</p>
+    </section>
+
+    <section class="slide" id="slide-14">
+      <span class="section-label">Слайд 14 • Базовая точка</span>
+      <h2>Почему прямой mapping кодов не работает</h2>
+      <p>В domains с закрытыми и динамическими знаниями нельзя опираться только на внутренние параметры модели.</p>
+      <ul>
+        <li>Даже сильные модели показывают низкую zero-shot точность.</li>
+        <li>Требуются явные структуры и внешний источник фактов.</li>
+      </ul>
+      <figure class="evidence">
+        <img src="assets/table%202.png" alt="Table 2: Baseline zero-shot code mapping accuracy">
+        <figcaption>Table 2. Базовый baseline: прямой zero-shot mapping показывает низкую точность.</figcaption>
+      </figure>
+    </section>
+
+    <section class="slide" id="slide-15">
+      <span class="section-label">Слайд 15 • Accuracy</span>
+      <h2>Что дают prompting-стратегии (Table 3)</h2>
+      <ul>
+        <li>Few-shot и Enhanced few-shot повышают точность классификации.</li>
+        <li>CoT дополнительно улучшает результат на ряде моделей.</li>
+        <li>Изменение temperature влияет на абсолютные значения, но тренд улучшения сохраняется.</li>
+      </ul>
+      <p class="note">Temperature регулирует степень случайности генерации: при росте параметра увеличивается вариативность ответа.</p>
+      <figure class="evidence">
+        <img src="assets/table%203.png" alt="Table 3: Accuracy of code mapping level predictions for prompting strategies">
+        <figcaption>Table 3. Accuracy prediction по классам A/B/C для разных prompting-стратегий.</figcaption>
+      </figure>
+    </section>
+
+    <section class="slide" id="slide-16">
+      <span class="section-label">Слайд 16 • Precision</span>
+      <h2>Как метрики превращаются в ускорение эксперта</h2>
+      <p>Практическая цель системы заключается в маршрутизации решений по степени уверенности.</p>
+      <ul>
+        <li>A: автоматическое одобрение при высокой precision.</li>
+        <li>C: автоматическое отклонение при высокой precision.</li>
+        <li>B: обязательная экспертная проверка.</li>
+      </ul>
+      <p>Такой triage снижает нагрузку на специалиста и концентрирует его время на неоднозначных случаях.</p>
+      <figure class="evidence">
+        <img src="assets/figure%204.png" alt="Figure 4: Precision by level for different models and prompting methods">
+        <figcaption>Fig. 4. Precision по уровням A/B/C как основание triage-маршрутизации.</figcaption>
+      </figure>
+    </section>
+
+    <section class="slide" id="slide-17">
+      <span class="section-label">Слайд 17 • Ошибки</span>
+      <h2>Где система ошибается: путаница A/B</h2>
+      <ul>
+        <li>Основной тип ошибки: B классифицируется как A.</li>
+        <li>Уровень C отделяется заметно стабильнее из-за явных конфликтных признаков.</li>
+        <li>Требуется усиленный контроль пограничной зоны между A и B.</li>
+      </ul>
+      <figure class="evidence">
+        <img src="assets/figure%205.png" alt="Figure 5: Confusion matrices for mapping level predictions">
+        <figcaption>Fig. 5. Confusion matrices для диагностики ошибок уровня A/B/C.</figcaption>
+      </figure>
+    </section>
+
+    <section class="slide" id="slide-18">
+      <span class="section-label">Слайд 18 • Главный ответ</span>
+      <h2>Что онтологии дают LLM для reasoning</h2>
+      <div class="value-grid">
+        <article class="card value-card">
+          <h3>1. Grounding</h3>
+          <p>Выводы модели опираются на извлечённые факты графа, а не только на параметрическую память.</p>
+        </article>
+        <article class="card value-card">
+          <h3>2. Структура</h3>
+          <p>Reasoning строится поверх иерархий и семантических отношений, а не поверх строковых совпадений.</p>
+        </article>
+        <article class="card value-card">
+          <h3>3. Динамичность</h3>
+          <p>Обновление знаний переносится в обновление графа без повторного обучения LLM.</p>
+        </article>
+        <article class="card value-card">
+          <h3>4. Интерпретируемость</h3>
+          <p>Каждый вывод можно связать с evidence и объяснить через конкретные узлы и связи.</p>
+        </article>
+      </div>
+    </section>
+
+    <section class="slide" id="slide-19">
+      <span class="section-label">Слайд 19 • Ограничения</span>
+      <h2>Ограничения и риски подхода</h2>
+      <div class="risk-grid">
+        <article class="card risk-card">
+          <h3>Доступность данных</h3>
+          <p>Данные и онтологии нередко являются проприетарными, что ограничивает масштаб и переносимость решения.</p>
+        </article>
+        <article class="card risk-card">
+          <h3>Зависимость retrieval</h3>
+          <p>Качество NL2SPARQL напрямую зависит от корректности схемы, примеров и дисциплины валидации запросов.</p>
+        </article>
+        <article class="card risk-card">
+          <h3>Иллюзия достоверности</h3>
+          <p>Качественное текстовое объяснение не гарантирует истинность вывода без проверки фактического evidence.</p>
+        </article>
+      </div>
+      <p class="risk-note">Следствие для внедрения: обязателен human-in-the-loop, где система ускоряет анализ, но финальное решение остаётся за экспертом.</p>
+    </section>
+
+    <section class="slide" id="slide-20">
+      <span class="section-label">Слайд 20 • Обобщение</span>
+      <h2>Как переносить архитектуру в другие домены</h2>
+      <div class="cols-2">
+        <div class="card">
+          <h3>Где применимо</h3>
+          <ul>
+            <li>Каталоги и мастер-данные.</li>
+            <li>Системы compliance и регуляторные контуры.</li>
+            <li>Отраслевые классификаторы и стандарты.</li>
+          </ul>
+        </div>
+        <div class="card">
+          <h3>Переиспользуемые принципы</h3>
+          <ul>
+            <li>KG как единый источник истины.</li>
+            <li>NL → formal query как интерфейс доступа.</li>
+            <li>A/B/C triage для распределения нагрузки.</li>
+          </ul>
+        </div>
+      </div>
+    </section>
+
+    <section class="slide" id="slide-21">
+      <span class="section-label">Слайд 21 • Заключение</span>
+      <h2>Ключевые выводы доклада</h2>
+      <div class="summary-grid">
+        <article class="card summary-card">
+          <h3>1. Ограничение LLM-only</h3>
+          <p>Изолированная модель недостаточна для надёжного semantic mapping в сложных доменах.</p>
+        </article>
+        <article class="card summary-card">
+          <h3>2. Проверяемость вывода</h3>
+          <p>Интеграция KG + RAG обеспечивает внешнее обоснование и повышает прозрачность reasoning.</p>
+        </article>
+        <article class="card summary-card">
+          <h3>3. Практика обновлений</h3>
+          <p>Актуализация знаний решается обновлением графа, а не постоянным retrain модели.</p>
+        </article>
+        <article class="card summary-card">
+          <h3>4. Прикладной эффект</h3>
+          <p>Основной выигрыш достигается за счёт triage A/B/C и концентрации эксперта на сложных случаях.</p>
+        </article>
+      </div>
+      <p class="footer-title">Вопросы?</p>
+    </section>
+
+    <section class="slide" id="slide-22">
+      <span class="section-label">Слайд 22 • Backup</span>
+      <h2>Демонстрационный пример output</h2>
+      <p>Показать итоговый формат ответа для эксперта:</p>
+      <ul>
+        <li>список кандидатов сопоставления;</li>
+        <li>уровень близости A/B/C;</li>
+        <li>краткое reasoning и финальное summary.</li>
+      </ul>
+      <p>Такой формат ближе к реальному процессу, чем вывод «топ-5 похожих строк» без структуры.</p>
+      <figure class="evidence">
+        <img src="assets/figure%201.png" alt="Figure 1: Output example for expert workflow">
+        <figcaption>Fig. 1 (output-часть). Резервный демонстрационный пример перед Q&amp;A.</figcaption>
+      </figure>
+    </section>
+  </main>
+  <script>
+    (function () {
+      const slides = Array.from(document.querySelectorAll('.slide'));
+      if (!slides.length) return;
+
+      const indexBySlide = new Map(slides.map((slide, index) => [slide, index]));
+      let activeIndex = 0;
+
+      const observer = new IntersectionObserver(
+        (entries) => {
+          entries
+            .filter((entry) => entry.isIntersecting)
+            .sort((a, b) => b.intersectionRatio - a.intersectionRatio)
+            .forEach((entry) => {
+              const index = indexBySlide.get(entry.target);
+              if (typeof index === 'number') {
+                activeIndex = index;
+              }
+            });
+        },
+        { threshold: [0.55, 0.8] }
+      );
+
+      slides.forEach((slide) => observer.observe(slide));
+
+      function goToSlide(index) {
+        const clamped = Math.max(0, Math.min(slides.length - 1, index));
+        activeIndex = clamped;
+        slides[clamped].scrollIntoView({ behavior: 'smooth', block: 'start' });
+      }
+
+      document.addEventListener('keydown', (event) => {
+        if (event.defaultPrevented) return;
+        if (event.metaKey || event.ctrlKey || event.altKey) return;
+
+        const key = event.key;
+        if (key === 'ArrowRight' || key === 'ArrowDown' || key === 'PageDown') {
+          event.preventDefault();
+          goToSlide(activeIndex + 1);
+        } else if (key === 'ArrowLeft' || key === 'ArrowUp' || key === 'PageUp') {
+          event.preventDefault();
+          goToSlide(activeIndex - 1);
+        } else if (key === 'Home') {
+          event.preventDefault();
+          goToSlide(0);
+        } else if (key === 'End') {
+          event.preventDefault();
+          goToSlide(slides.length - 1);
+        }
+      });
+    })();
+  </script>
+</body>
+</html>
