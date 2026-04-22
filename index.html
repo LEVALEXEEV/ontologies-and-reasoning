@@ -16,9 +16,8 @@
       <h1 class="slide-title">Использование онтологий для reasoning в LLM</h1>
       <p class="slide-subtitle">OntologyRAG: Better and Faster Biomedical Code Mapping with Retrieval-Augmented Generation (RAG) Leveraging Ontology Knowledge Graphs and Large Language Models</p>
       <div class="authors-block" aria-label="Авторы доклада">
-        <p class="authors-title">Подготовили</p>
+        <p class="authors-title">Подготовил</p>
         <p class="author-name">Алексеев Лев</p>
-        <p class="author-name">Краснопольский Сергей</p>
       </div>
       <p class="footer-title">Структура доклада</p>
       <p>Сначала разберёмся, почему LLM в изоляции недостаточны для задачи code mapping, затем рассмотрим архитектуру OntologyRAG и проанализируем метрики практической эффективности.</p>
@@ -30,7 +29,7 @@
       <p>Code mapping требует не только лексической близости, но и логического анализа смысловой эквивалентности между концептами разных онтологий.</p>
       <ul>
         <li>Нужно отличать синоним от неполного совпадения.</li>
-        <li>Нужно учитывать уточняющие признаки: acute/chronic, unspecified.</li>
+        <li>Нужно учитывать уточняющие признаки: острый/хронический, неподтвержденный.</li>
         <li>Нужно разделять «похоже» и «эквивалентно».</li>
       </ul>
       <p>Если модель выдаёт только ранжированный список кандидатов без структурного контекста, эксперт вынужден вручную проверять каждый вариант.</p>
@@ -73,7 +72,7 @@
           <ul>
             <li>Снижает ошибки, когда модель видит похожие слова, но не видит структуру смысла.</li>
             <li>Повышает проверяемость и интерпретируемость выводов.</li>
-            <li>Обновление знаний решается обновлением графа, а не retrain модели.</li>
+            <li>Обновление знаний решается обновлением графа, а не повторное обучение модели.</li>
           </ul>
         </div>
       </div>
@@ -85,8 +84,8 @@
       <p>Абляция в статье показывает, что прямой маппинг кодов без внешнего контекста даёт крайне низкую точность даже у сильных моделей.</p>
       <ul>
         <li>Параметрическая память не покрывает закрытые и быстро обновляющиеся доменные знания.</li>
-        <li>Лексическая близость не эквивалентна semantic match.</li>
-        <li>Модель без evidence склонна к угадыванию и галлюцинациям.</li>
+        <li>Лексическая близость не эквивалентна семантическому совпадению.</li>
+        <li>Модель без внешнего контекста склонна к угадыванию и галлюцинациям.</li>
       </ul>
       <figure class="evidence">
         <img src="assets/table%202.png" alt="Table 2: Accuracy from using different LLMs directly for code mapping">
@@ -109,7 +108,7 @@
         </article>
         <article class="goal-block">
           <h3>3. Основание для reasoning</h3>
-          <p>Reasoning строится на retrieved evidence, что повышает контролируемость итоговых выводов.</p>
+          <p>Reasoning строится на структурированных знаниях, что повышает контролируемость итоговых выводов.</p>
         </article>
       </div>
     </section>
@@ -147,7 +146,7 @@
           <span class="diagram-arrow" aria-hidden="true"></span>
           <article class="diagram-node">
             <h3>Transform</h3>
-            <p>Преобразование в RDF triples</p>
+            <p>Преобразование в RDF триплеты</p>
           </article>
           <span class="diagram-arrow" aria-hidden="true"></span>
           <article class="diagram-node node-target">
@@ -166,7 +165,7 @@
       <p>LLM генерирует SPARQL по формальному промпту с правилами, списком графов и примерами NLQ→SPARQL.</p>
       <ul>
         <li>Формат ответа ограничен: вернуть только корректный запрос.</li>
-        <li>Используется self-validation loop для проверки синтаксиса и сущностей.</li>
+        <li>Используется цикл самопроверки для проверки синтаксиса и сущностей.</li>
         <li>При ошибках выполняется перегенерация до валидного запроса.</li>
       </ul>
       <figure class="evidence">
@@ -252,7 +251,7 @@
         <article class="card compare-card">
           <h3>Dataset 1</h3>
           <p class="compare-meta">500 маппингов</p>
-          <p>Прямой code mapping ICD-9-CM → ICD-10-CM без дополнительного retrieval-контекста.</p>
+          <p>Прямой code mapping без дополнительного контекста.</p>
           <p>Назначение: показать ограничения подхода «LLM без извлечения контекста».</p>
         </article>
         <article class="card compare-card">
@@ -315,7 +314,7 @@
       <h2>Что онтологии дают LLM для reasoning</h2>
       <div class="value-grid">
         <article class="card value-card">
-          <h3>1. Grounding</h3>
+          <h3>1. Обоснованность</h3>
           <p>Все выводы основаны на явно извлечённых фактах графа, а не на скрытых вероятностных ассоциациях параметров модели.</p>
         </article>
         <article class="card value-card">
@@ -328,7 +327,7 @@
         </article>
         <article class="card value-card">
           <h3>4. Интерпретируемость</h3>
-          <p>Можно показать извлечённые сущности и связи, а затем дать объяснение поверх этого evidence.</p>
+          <p>Можно показать извлечённые сущности и связи, а затем дать объяснение поверх этого графа.</p>
         </article>
       </div>
     </section>
